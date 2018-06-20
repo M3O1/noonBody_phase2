@@ -9,7 +9,7 @@ import h5py
 BUCKET_NAME = "baidu-segmentation-dataset"
 __all__ = ['generate_data']
 
-def generate_data(input_size, image_dir, profile_dir, h5_path, df_path):
+def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path):
     print("start to generate dataset")
     df = pd.read_csv(df_path)
 
@@ -17,7 +17,7 @@ def generate_data(input_size, image_dir, profile_dir, h5_path, df_path):
     filename_series = df[df.num_person == 1].filename
     # image를 담을 데이터 셋
     # dataset-shape : the number of data, height, width, channel
-    dataset = np.zeros((len(filename_series), *input_size, 4),dtype=np.uint8)
+    dataset = np.zeros((len(filename_series), *img_dim, 4),dtype=np.uint8)
 
     start_time = time.time()
     for idx, filename in enumerate(filename_series):
@@ -42,7 +42,7 @@ def generate_data(input_size, image_dir, profile_dir, h5_path, df_path):
         else:
             pad_input = img_and_profile
         # Resize함
-        resized = cv2.resize(pad_input, input_size)
+        resized = cv2.resize(pad_input, img_dim)
         # dataset에 담음
         dataset[idx] = resized
         if idx % 100 == 0:
@@ -50,7 +50,7 @@ def generate_data(input_size, image_dir, profile_dir, h5_path, df_path):
 
     # dataset 저장하기
     with h5py.File(h5_path) as file:
-        file.create_dataset("{}x{}".format(*input_size),
+        file.create_dataset("{}x{}".format(*img_dim),
                             data=dataset,dtype=np.uint8)
     print("save dataset in {}".format(h5_path))
 

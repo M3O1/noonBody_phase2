@@ -44,7 +44,6 @@
 ### To-Do
 
 - [x] '18.06.18 : Data 정제 및 Data Generator 구현
-- [ ] 
 
 
 
