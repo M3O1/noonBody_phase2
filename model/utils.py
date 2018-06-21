@@ -43,8 +43,7 @@ def HumanSegGenerator(dataset, img_dim, batch_size=64,is_train=True):
             else:
                 #test일 경우, data augmentation 하지 않음
                 data = data / 255. # normalize data
-
-                data = cv2.resize(data, img_dim)
+                data = cv2.resize(data, img_dim[:2])
 
             # dataset을 image와 profile로 나눔
             image, profile = data[:,:,:3], data[:,:,-1]
@@ -76,7 +75,7 @@ def apply_rotation(image):
     return rotate(image, rotation_angle, mode='constant', cval=1.)
 
 def apply_rescaling(image):
-    rescale_ratio = 0.8 + random.random() * 0.4 # from 0.8 to 1.2
+    rescale_ratio = 0.9 + random.random() * 0.1 # from 0.8 to 1.2
     return rescale(image, rescale_ratio,mode='reflect')
 
 def apply_flip(image):
