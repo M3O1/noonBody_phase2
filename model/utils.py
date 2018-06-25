@@ -9,7 +9,11 @@ from PIL import Image
 
 __all__ = ['HumanSegGenerator','load_dataset']
 
-def HumanSegGenerator(dataset, img_dim, batch_size=64,is_train=True):
+def load_dataset(dataset_name='384x384',h5_path="../data/baidu_segmentation.h5"):
+    with h5py.File(h5_path) as file:
+        return file[dataset_name][:]
+
+def HumanSegGenerator(dataset, img_dim, batch_size=64,is_train=True,sigmoid=False,preprocess=True):
     '''
     dataset : total dataset of human segmentation
         data는 (384,384,4)로 구성되어 잇는데,
@@ -26,12 +30,15 @@ def HumanSegGenerator(dataset, img_dim, batch_size=64,is_train=True):
         batch_size = dataset.shape[0]
 
     counter = 0; batch_image = []; batch_profile = []
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     while True:
         np.random.shuffle(dataset)
         for data in dataset:
             counter += 1
             if is_train:
                 #train일 경우, data Augumentation PipeLine 거침
+                if preprocess:
+                    data = apply_clahe(data, clahe)
                 data = apply_rotation(data)
                 data = apply_rescaling(data)
                 data = apply_flip(data)
@@ -53,8 +60,10 @@ def HumanSegGenerator(dataset, img_dim, batch_size=64,is_train=True):
             profile = (profile>0.7).astype(int)
             profile = np.expand_dims(profile,axis=-1)
 
-            # normalize from (0,1) to (-1,1)
-            image, profile = normalization(image), normalization(profile)
+            if not sigmoid:
+                # normalize from (0,1) to (-1,1)
+                image, profile = normalization(image), normalization(profile)
+
             batch_image.append(image); batch_profile.append(profile)
             if counter == batch_size:
                 yield np.stack(batch_image, axis=0), np.stack(batch_profile, axis=0)
@@ -69,10 +78,17 @@ def inverse_normalization(X):
     res = (X + 1.) / 2.
     return np.clip(res, 0.,1.)
 
+# preprocess image
+def apply_clahe(data,clahe):
+    image = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2LAB)
+    image[:,:,0] = clahe.apply(image[:,:,0])
+    data[:,:,:3] = cv2.cvtColor(image,cv2.COLOR_LAB2RGB)
+    return data
+
 # data augumentation pipeline
 def apply_rotation(image):
     rotation_angle = random.randint(-8,8)
-    return rotate(image, rotation_angle, mode='constant', cval=1.)
+    return rotate(image, rotation_angle, mode='constant', cval=0.)
 
 def apply_rescaling(image):
     rescale_ratio = 0.9 + random.random() * 0.1 # from 0.8 to 1.2
@@ -89,10 +105,7 @@ def apply_random_crop(image, img_dim):
     ih = random.randint(0,image.shape[1]-img_dim[1])
     return image[iv:iv+img_dim[0],ih:ih+img_dim[1],:]
 
-def load_dataset(dataset_name='384x384',h5_path="../data/baidu_segmentation.h5"):
-    with h5py.File(h5_path) as file:
-        return file[dataset_name][:]
-
+# Process batch Image
 def extract_patches(X, patch_size):
     row, col = patch_size
     list_row_idx = [(i * row, (i + 1) * row) for i in range(X.shape[1] // row)]
@@ -149,14 +162,24 @@ def gen_sample(generator, nb_sample):
     profile_sample = np.concatenate(profile_sample)[:nb_sample]
     return image_sample, profile_sample
 
-def plot_generated_batch(image_sample, profile_sample, generator, plot_path):
+def plot_generated_batch(image_sample, profile_sample, generator, plot_path, sigmoid=False):
     nb_sample = image_sample.shape[0]
     rows = []
     for i in range(nb_sample):
-        image = inverse_normalization(np.squeeze(image_sample[i]))
-        real_profile = np.squeeze(inverse_normalization(profile_sample[i]))
+        if not sigmoid:
+            image = inverse_normalization(np.squeeze(image_sample[i]))
+            real_profile = np.squeeze(inverse_normalization(profile_sample[i]))
+        else:
+            image = np.squeeze(image_sample[i])
+            real_profile = np.squeeze(profile_sample[i])
+
         y = generator.predict(image_sample[i:i+1])
-        fake_profile = np.squeeze(inverse_normalization(y))
+
+        if not sigmoid:
+            fake_profile = np.squeeze(inverse_normalization(y))
+        else:
+            fake_profile = np.squeeze(y)
+
         real_profile = np.stack([real_profile]*3,axis=-1)
         fake_profile = np.stack([fake_profile]*3,axis=-1)
 
