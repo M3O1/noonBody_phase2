@@ -10,7 +10,7 @@ from tqdm import tqdm
 BUCKET_NAME = "baidu-segmentation-dataset"
 __all__ = ['generate_data']
 
-def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path):
+def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path,dataset_name):
     print("start to generate dataset")
     df = pd.read_csv(df_path)
 
@@ -40,12 +40,11 @@ def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path):
 
     # dataset 저장하기
     with h5py.File(h5_path) as file:
-        dataset_name = "{}x{}".format(*img_dim[:2])
         if not dataset_name in file:
             file.create_dataset(dataset_name,
                             data=dataset,dtype=np.uint8)
         else:
-            file[dataset_name][:] = dataset
+            file[dataset_name][...] = dataset
     print("save dataset in {}".format(h5_path))
 
 def margin_to_square(image):
