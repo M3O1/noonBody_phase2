@@ -8,7 +8,8 @@ from skimage.util import random_noise
 
 __all__ = ['HumanSegGenerator','load_dataset']
 
-def load_dataset(dataset_name='train',h5_path="../data/baidu-segmentation.h5"):
+def load_dataset(dataset_name='train',
+                 h5_path="../data/baidu-segmentation.h5"):
     with h5py.File(h5_path) as file:
         return file[dataset_name][:]
 
@@ -158,85 +159,3 @@ def to_uint8(X):
     X = X.astype(np.float32)
     return cv2.normalize(X,np.zeros_like(X),
               0,255,norm_type=cv2.NORM_MINMAX,dtype=cv2.CV_8U)
-
-# Process batch Image
-def extract_patches(X, patch_size):
-    row, col = patch_size
-    list_row_idx = [(i * row, (i + 1) * row) for i in range(X.shape[1] // row)]
-    list_col_idx = [(i * col, (i + 1) * col) for i in range(X.shape[2] // col)]
-
-    list_X = []
-    for row_idx in list_row_idx:
-        for col_idx in list_col_idx:
-            list_X.append(X[:, row_idx[0]:row_idx[1], col_idx[0]:col_idx[1], :])
-    return list_X
-
-def get_disc_batch(image_batch, profile_batch, generator, batch_counter, patch_size,
-                   label_smoothing=False, label_flipping=0):
-    batch_size = image_batch.shape[0]
-    # Create X_disc: alternatively only generated or real images
-    if batch_counter % 2 == 0:
-        # Produce an output
-        X_disc = generator.predict(image_batch)
-        y_disc = np.zeros((batch_size, 2), dtype=np.uint8)
-        y_disc[:, 0] = 1
-
-        if label_flipping > 0:
-            p = np.random.binomial(1, label_flipping)
-            if p > 0:
-                y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
-    else:
-        X_disc = profile_batch
-        y_disc = np.zeros((batch_size, 2), dtype=np.uint8)
-        if label_smoothing:
-            y_disc[:, 1] = np.random.uniform(low=0.9, high=1, size=y_disc.shape[0])
-        else:
-            y_disc[:, 1] = 1
-
-        if label_flipping > 0:
-            p = np.random.binomial(1, label_flipping)
-            if p > 0:
-                y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
-
-    # Now extract patches form X_disc
-    X_disc = extract_patches(X_disc, patch_size)
-    return X_disc, y_disc
-
-def gen_sample(generator, nb_sample):
-    image_sample, profile_sample= [], []
-    image_batch, profile_batch = next(generator)
-    nb_batch = image_batch.shape[0]
-    tot_batch = 0
-    while nb_sample >= tot_batch:
-        image_sample.append(image_batch); profile_sample.append(profile_batch)
-        tot_batch += nb_batch
-        image_batch, profile_batch = next(generator)
-
-    image_sample = np.concatenate(image_sample)[:nb_sample]
-    profile_sample = np.concatenate(profile_sample)[:nb_sample]
-    return image_sample, profile_sample
-
-def plot_sample_image(images, profiles, plot_path):
-    images = np.stack([to_uint8(image) for image in np.squeeze(images)])
-    profiles = np.stack([to_uint8(image) for image in np.squeeze(profiles)])
-
-    samples = []
-    for image, profile in zip(images, profiles):
-        if len(image.shape) == 2:
-            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-        result = fill_mask(image, profile)
-        samples.append(np.concatenate((image,result),axis=1))
-    samples = np.concatenate(samples,axis=0)
-    samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
-    cv2.imwrite(plot_path, samples)
-
-def extract_contour(image):
-    kernel = np.ones((5,5), np.uint8)
-    return image - cv2.erode(image,kernel,iterations=1)
-
-def fill_mask(image, profile):
-    mask = np.expand_dims(profile,axis=-1) * np.array([1,0,0],dtype=np.uint8)
-    contour = extract_contour(profile)
-    contour = np.expand_dims(contour,axis=-1) * np.array([1,1,1],dtype=np.uint8)
-    result = cv2.addWeighted(image,0.5,mask,0.5,0.8)
-    return cv2.add(result,contour)
