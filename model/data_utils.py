@@ -5,6 +5,7 @@ import cv2
 
 from skimage.transform import rescale, rotate
 from skimage.util import random_noise
+from skimage.exposure import adjust_gamma
 
 __all__ = ['HumanSegGenerator','load_dataset']
 
@@ -17,6 +18,7 @@ def HumanSegGenerator(dataset,
                       img_dim,
                       batch_size=64,
                       sigmoid=True,
+                      bg_removal=False,
                       aug_funcs=[],
                       prep_funcs=[]):
     '''
@@ -64,8 +66,11 @@ def HumanSegGenerator(dataset,
             # adjust the range of value
             image = np.clip(image,0.,1.)
 
-            profile = (profile>0.7).astype(int)
-            profile = np.expand_dims(profile,axis=-1)
+            profile = (profile>0.7).astype(np.uint8)
+            if bg_removal:
+                profile = cv2.bitwise_and(image, image, mask=profile)
+            else:
+                profile = np.expand_dims(profile,axis=-1)
 
             if not sigmoid:
                 # normalize from (0,1) to (-1,1)
@@ -142,6 +147,13 @@ def random_noise_func(var=0.001):
         return data
     return func
 
+def gamma_func(min_gamma=0.8,max_gamma=1.4):
+    def func(data):
+        gamma = np.random.uniform(min_gamma,max_gamma)
+        data[:,:,:3] = adjust_gamma(data[:,:,:3],gamma)
+        return data
+    return func
+
 # normalization
 def to_tanh(X):
     # value range => (-1,1)
@@ -157,5 +169,4 @@ def to_sigmoid(X):
 
 def to_uint8(X):
     X = X.astype(np.float32)
-    return cv2.normalize(X,np.zeros_like(X),
-              0,255,norm_type=cv2.NORM_MINMAX,dtype=cv2.CV_8U)
+    return cv2.normalize(X,np.zeros_like(X),0,255,norm_type=cv2.NORM_MINMAX,dtype=cv2.CV_8U)

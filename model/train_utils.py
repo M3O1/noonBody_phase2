@@ -6,6 +6,7 @@ from slacker import Slacker
 import keras.backend as K
 import tensorflow as tf
 from datetime import datetime
+import json
 
 class PlotCheckpoint(keras.callbacks.Callback):
     def __init__(self, unet, images, plot_dir,threshold=0.5):
@@ -50,6 +51,21 @@ def plot_sample_image(images, profiles, plot_path):
     samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
     cv2.imwrite(plot_path, samples)
 
+def plot_bg_removal_sample_image(images, profiles, plot_path):
+    images = np.stack([to_uint8(image) for image in np.squeeze(images)])
+    profiles = np.stack([to_uint8(image) for image in np.squeeze(profiles)])
+
+    samples = []
+    for image, profile in zip(images, profiles):
+        if len(image.shape) == 2:
+            image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+        if len(profile.shape) == 2:
+            image = cv2.cvtColor(profile, cv2.COLOR_GRAY2RGB)
+        samples.append(np.concatenate((image,profile),axis=1))
+    samples = np.concatenate(samples,axis=0)
+    samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
+    cv2.imwrite(plot_path, samples)
+    
 def extract_contour(image):
     kernel = np.ones((5,5), np.uint8)
     return image - cv2.erode(image,kernel,iterations=1)
