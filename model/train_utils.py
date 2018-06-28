@@ -9,11 +9,12 @@ from datetime import datetime
 import json
 
 class PlotCheckpoint(keras.callbacks.Callback):
-    def __init__(self, unet, images, plot_dir,threshold=0.5):
+    def __init__(self, unet, images, plot_dir,threshold=0.5, bg_removal=False):
         self.unet = unet
         self.images = images
         self.plot_dir = plot_dir
         self.thr = threshold
+        self.bg_removal = bg_removal
 
     def on_train_begin(self, logs={}):
         return
@@ -25,10 +26,15 @@ class PlotCheckpoint(keras.callbacks.Callback):
         return
 
     def on_epoch_end(self, epoch, logs={}):
-        pred = self.unet.predict_on_batch(self.images)
-        pred = (pred >= self.thr).astype(np.uint8)
         plot_path = os.path.join(self.plot_dir,"{:02d}_epoch_sample.png".format(epoch))
-        plot_sample_image(self.images, pred, plot_path)
+        
+        pred = self.unet.predict_on_batch(self.images)
+        if self.bg_removal:
+            plot_bg_removal_sample_image(self.images, pred, plot_path)
+        else:
+            pred = (pred >= self.thr).astype(np.uint8)
+            plot_sample_image(self.images, pred, plot_path)
+            
         return
 
     def on_batch_begin(self, batch, logs={}):
