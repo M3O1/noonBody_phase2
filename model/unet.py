@@ -20,7 +20,7 @@ def UNET(img_dim=(256,256,3), depth=4,
     convs = []
     for i in range(depth):
         if p is None:
-            c, p = unet_convBlock(x, list_filters[i], "conv{}-".format(i), bn, activation)
+            c, p = unet_convBlock(x, list_filters[i], "conv{}-".format(i), False, activation)
         else:
             c, p = unet_convBlock(p, list_filters[i], "conv{}-".format(i), bn, activation)
         convs.append(c)
@@ -62,9 +62,12 @@ def unet_upconvBlock(x, connect_layer, filters, block_name, bn=True, activation=
     return conv
 
 def conv_bn_activation(x, filters, block_name, bn=True, activation='relu'):
-    conv = Conv2D(filters, (3, 3), activation='linear', padding='same', name=block_name) (x)
     if bn:
-        conv = BatchNormalization(scale=False, axis=3)(conv)
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', name=block_name, use_bias=False) (x)
+        conv = BatchNormalization(axis=3)(conv)
+    else:
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', name=block_name) (x)
+        
     if activation=='LeakyReLU':
         conv = LeakyReLU(0.2)(conv)
     else:
