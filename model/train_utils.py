@@ -65,7 +65,7 @@ def plot_bg_removal_sample_image(images, profiles, plot_path):
     samples = np.concatenate(samples,axis=0)
     samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
     cv2.imwrite(plot_path, samples)
-    
+
 def extract_contour(image):
     kernel = np.ones((5,5), np.uint8)
     return image - cv2.erode(image,kernel,iterations=1)
