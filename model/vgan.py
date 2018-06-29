@@ -1,7 +1,7 @@
 from keras import Model
 from keras.layers import Input, Conv2D, MaxPooling2D, GlobalAveragePooling2D
 from keras.layers import BatchNormalization, Dense, concatenate
-from keras.layers.core import Activation
+from keras.layers.core import Activation, Flatten
 from keras.layers.advanced_activations import LeakyReLU
 
 def VGAN(generator, discriminator):
@@ -18,29 +18,59 @@ def VGAN(generator, discriminator):
 ###################################
 # Discriminator
 ###################################
-def DISCRIMINATOR(img_dim=(256,256,3), nb_filter=32, output_dim=(256,256,1)):
+def DISCRIMINATOR(img_dim=(256,256,3), nb_filter=32,activation='LeakyReLu',
+                bn=True, sigmoid=True, output_dim=(256,256,1)):
     h, w, ch = img_dim
     _, _, out_ch = output_dim
     inputs = Input((h, w, ch + out_ch))
 
-    conv = conv_bn_activation(inputs, nb_filter, 'conv1-1', bn=True, activation='relu')
+    conv = conv_bn_activation(inputs, nb_filter, 'conv1-1', bn=bn, activation=activation)
     conv = MaxPooling2D(pool_size=(2, 2))(conv)
-    conv = conv_bn_activation(conv, nb_filter, 'conv1-2', bn=True, activation='relu')
+    conv = conv_bn_activation(conv, nb_filter, 'conv1-2', bn=bn, activation=activation)
     pool = MaxPooling2D(pool_size=(2, 2))(conv)
-    conv = conv_bn_activation(pool, 2*nb_filter, 'conv2-1', bn=True, activation='relu')
+    conv = conv_bn_activation(pool, 2*nb_filter, 'conv2-1', bn=bn, activation=activation)
     conv = MaxPooling2D(pool_size=(2, 2))(conv)
 
-    conv = conv_bn_activation(conv, 2*nb_filter, 'conv2-2', bn=True, activation='relu')
+    conv = conv_bn_activation(conv, 2*nb_filter, 'conv2-2', bn=bn, activation=activation)
 
     for idx in range(2,5):
         pool = MaxPooling2D(pool_size=(2, 2))(conv)
         conv = conv_bn_activation(pool, (2**(idx)*nb_filter),
-            'conv{}-1'.format(idx+1), bn=True, activation='relu')
+            'conv{}-1'.format(idx+1), bn=bn, activation=activation)
         conv = conv_bn_activation(conv, (2**(idx)*nb_filter),
-            'conv{}-2'.format(idx+1), bn=True, activation='relu')
+            'conv{}-2'.format(idx+1), bn=bn, activation=activation)
 
     gap = GlobalAveragePooling2D()(conv)
-    outputs = Dense(1, activation='sigmoid')(gap)
+    if sigmoid:
+        outputs = Dense(2, activation='sigmoid')(gap)
+    else:
+        outputs = Dense(2, activation='tanh')(gap)
+
+    model = Model(inputs, outputs, name='discriminator')
+    return model
+
+def PIC_DISCRIMINATOR(img_dim=(256,256,3), nb_filter=64, depth=6,
+                    activation='LeakyReLu',bn=True, sigmoid=True,
+                    output_dim=(256,256,1)):
+    h, w, ch = img_dim
+    _, _, out_ch = output_dim
+    inputs = Input((h, w, ch + out_ch))
+
+    list_filters = [nb_filter * min(8, (2 ** i)) for i in range(depth)]
+
+    conv = None
+    for i, nb_filter in enumerate(list_filters):
+        if i == 0:
+            conv = conv_bn_activation(inputs, nb_filter, 'conv-{}'.format(i), 2,
+                                        bn=bn, activation=activation)
+        else:
+            conv = conv_bn_activation(conv, nb_filter, 'conv-{}'.format(i), 2,
+                                        bn=bn, activation=activation)
+    flat = Flatten()(conv)
+    if sigmoid:
+        outputs = Dense(2, activation='sigmoid')(flat)
+    else:
+        outputs = Dense(2, activation='tanh')(flat)
 
     model = Model(inputs, outputs, name='discriminator')
     return model
@@ -48,10 +78,14 @@ def DISCRIMINATOR(img_dim=(256,256,3), nb_filter=32, output_dim=(256,256,1)):
 ###################################
 # generic layer
 ###################################
-def conv_bn_activation(x, filters, block_name, bn=True, activation='relu'):
-    conv = Conv2D(filters, (3, 3), activation='linear', padding='same', name=block_name) (x)
+
+def conv_bn_activation(x, filters, block_name, strides=1, bn=True, activation='relu'):
     if bn:
-        conv = BatchNormalization(scale=False, axis=3)(conv)
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', strides=strides, name=block_name, use_bias=False) (x)
+        conv = BatchNormalization(axis=3)(conv)
+    else:
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', strides=strides, name=block_name) (x)
+
     if activation=='LeakyReLU':
         conv = LeakyReLU(0.2)(conv)
     else:
