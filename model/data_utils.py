@@ -154,6 +154,15 @@ def gamma_func(min_gamma=0.8,max_gamma=1.4):
         return data
     return func
 
+def color_gamma_func(min_gamma=0.6,max_gamma=1.4):
+    def func(data):
+        for i in range(3):
+            gamma = np.random.uniform(min_gamma,max_gamma)
+            data[:,:,i] = adjust_gamma(data[:,:,i], gamma)
+        return data
+    return func
+
+
 # normalization
 def to_tanh(X):
     # value range => (-1,1)

@@ -133,6 +133,7 @@ def mean_iou(y_pred, y_true):
 
 def np_mean_iou(y_pred, y_true, thr=0.5):
     y_pred = (y_pred>thr).astype(np.int)
+    y_true = (y_true>thr).astype(np.int)
 
     intersect = y_pred * y_true
     union = np.ones_like(y_pred) - ((1-y_pred) * (1-y_true))
