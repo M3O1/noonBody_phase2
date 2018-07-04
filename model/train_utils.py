@@ -131,13 +131,22 @@ def mean_iou(y_pred, y_true):
     union = K.ones_like(y_pred) - ((1-y_pred)*(1-y_true))
     return K.sum(intersect) / K.sum(union)
 
-def np_mean_iou(y_pred, y_true, thr=0.5):
+def np_mean_iou(y_pred, y_true, thr=0):
     y_pred = (y_pred>thr).astype(np.int)
     y_true = (y_true>thr).astype(np.int)
 
     intersect = y_pred * y_true
     union = np.ones_like(y_pred) - ((1-y_pred) * (1-y_true))
-    return np.sum(intersect) / np.sum(union)
+    return np.mean(np.sum(np.sum(intersect,axis=1),axis=1) / \
+                   np.sum(np.sum(union,axis=1),axis=1))
+
+def to_mask(image_batch,thr=-.99):
+    images = []
+    for image in image_batch:
+        mask = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        mask = (mask > thr).astype(np.float32)
+        images.append(mask)
+    return np.stack(images, axis=0)
 
 def get_disc_batch(image_batch, profile_batch, generator, batch_counter,
                    label_smoothing=False, label_flipping=0):
@@ -146,7 +155,7 @@ def get_disc_batch(image_batch, profile_batch, generator, batch_counter,
     if batch_counter % 2 == 0:
         # Produce an output
         X_disc = generator.predict(image_batch)
-        y_disc = np.zeros((batch_size, 2), dtype=np.uint8)
+        y_disc = np.zeros((batch_size, 2))
         y_disc[:, 0] = 1
 
         if label_flipping > 0:
@@ -155,11 +164,13 @@ def get_disc_batch(image_batch, profile_batch, generator, batch_counter,
                 y_disc[:, [0, 1]] = y_disc[:, [1, 0]]
     else:
         X_disc = profile_batch
-        y_disc = np.zeros((batch_size, 2), dtype=np.uint8)
+        y_disc = np.zeros((batch_size, 2))
         if label_smoothing:
-            y_disc[:, 1] = np.random.uniform(low=0.9, high=1, size=y_disc.shape[0])
+            val = np.random.uniform(low=0.9, high=1, size=y_disc.shape[0])
+            y_disc[:, 1] = val
+            y_disc[:, 0] = 1. - val
         else:
-            y_disc[:, 1] = 1
+            y_disc[:, 1] = 1.
 
         if label_flipping > 0:
             p = np.random.binomial(1, label_flipping)

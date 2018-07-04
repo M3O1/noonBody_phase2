@@ -19,7 +19,6 @@ def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path,dataset_name
     # dataset-shape : the number of data, height, width, channel
     dataset = np.zeros((len(filename_series), *img_dim[:2], 4),dtype=np.uint8)
 
-    start_time = time.time()
     for idx, filename in tqdm(enumerate(filename_series)):
         # image와 profile 가져오기
         image_path = os.path.join(image_dir,filename)
@@ -48,7 +47,7 @@ def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path,dataset_name
     print("save dataset in {}".format(h5_path))
 
 def margin_to_square(image):
-    h, w, _ = image.shape
+    h, w = image.shape[:2]
     if h - w > 0:
         diff = h - w
         margin1, margin2 = diff // 2 , diff - diff//2

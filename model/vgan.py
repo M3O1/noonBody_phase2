@@ -69,7 +69,7 @@ def PIC_DISCRIMINATOR(img_dim=(256,256,3), nb_filter=64, depth=6,
                                         bn=bn, instance=instance, activation=activation)
     flat = Flatten()(conv)
     if sigmoid:
-        outputs = Dense(2, activation='sigmoid')(flat)
+        outputs = Dense(2, activation='softmax')(flat)
     else:
         outputs = Dense(2, activation='tanh')(flat)
 
