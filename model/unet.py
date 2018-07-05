@@ -8,7 +8,19 @@ from ops import InstanceNormalization, conv_bn_activation, PermaDropout
 def UNET(img_dim=(256,256,3), depth=4,
          nb_filter=32, bn=True, instance=False, drop_rate=0, activation='relu',
          sigmoid=True, output_dim=(256,256,1)):
+    '''
+    From pix2pix
+    1. BatchNorm => Instance Norm
+    2. Instance Norm is not applied to the first layer
+    3. Activation
+        encoder => leaky relu
+        decoder => relu
+    4. Dropout
+        permument Dropout
 
+    From Unet
+    1. Width : 2 ( double conv + )
+    '''
     input_size = img_dim[:2]
     nb_out_channel = output_dim[2]
     x = Input(img_dim,name="input")
@@ -21,7 +33,7 @@ def UNET(img_dim=(256,256,3), depth=4,
     convs = []
     for i in range(depth):
         if p is None:
-            c, p = unet_convBlock(x, list_filters[i], "conv{}-".format(i), bn, instance, drop_rate, activation)
+            c, p = unet_convBlock(x, list_filters[i], "conv{}-".format(i), False, instance, drop_rate, activation)
         else:
             c, p = unet_convBlock(p, list_filters[i], "conv{}-".format(i), bn, instance, drop_rate, activation)
         convs.append(c)

@@ -51,6 +51,13 @@ def DISCRIMINATOR(img_dim=(256,256,3), nb_filter=32,activation='LeakyReLu',
 def PIC_DISCRIMINATOR(img_dim=(256,256,3), nb_filter=64, depth=6,
                     activation='LeakyReLu',bn=True, instance=False, drop_rate=0.0,
                     sigmoid=True, output_dim=(256,256,1)):
+    '''
+    From pix2pix
+    1. BatchNorm => Instance Norm
+    2. Instance Norm is not applied to the first layer
+    3. 286 x 286 discriminator
+        C64 - C128 - C256 - C512 - C512 - C512
+    '''
     h, w, ch = img_dim
     _, _, out_ch = output_dim
     inputs = Input((h, w, ch + out_ch))
