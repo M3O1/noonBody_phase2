@@ -1,6 +1,6 @@
 from keras import Model
 from keras.layers import Input, Conv2D, MaxPooling2D, GlobalAveragePooling2D
-from keras.layers import BatchNormalization, Dense, concatenate
+from keras.layers import BatchNormalization, Dense, concatenate, Dropout
 from keras.layers.core import Activation, Flatten
 from keras.layers.advanced_activations import LeakyReLU
 from ops import InstanceNormalization, conv_bn_activation
@@ -42,16 +42,14 @@ def DISCRIMINATOR(img_dim=(256,256,3), nb_filter=32,activation='LeakyReLu',
             'conv{}-2'.format(idx+1), 1, bn=bn, instance=instance, activation=activation)
 
     gap = GlobalAveragePooling2D()(conv)
-    if sigmoid:
-        outputs = Dense(2, activation='sigmoid')(gap)
-    else:
-        outputs = Dense(2, activation='tanh')(gap)
+
+    outputs = Dense(2, activation='softmax')(gap)
 
     model = Model(inputs, outputs, name='discriminator')
     return model
 
 def PIC_DISCRIMINATOR(img_dim=(256,256,3), nb_filter=64, depth=6,
-                    activation='LeakyReLu',bn=True, instance=False,
+                    activation='LeakyReLu',bn=True, instance=False, drop_rate=0.0,
                     sigmoid=True, output_dim=(256,256,1)):
     h, w, ch = img_dim
     _, _, out_ch = output_dim
@@ -63,15 +61,14 @@ def PIC_DISCRIMINATOR(img_dim=(256,256,3), nb_filter=64, depth=6,
     for i, nb_filter in enumerate(list_filters):
         if i == 0:
             conv = conv_bn_activation(inputs, nb_filter, 'conv-{}'.format(i), 2,
-                                        bn=bn, instance=instance, activation=activation)
+                                        bn=False, instance=instance, activation=activation)
         else:
             conv = conv_bn_activation(conv, nb_filter, 'conv-{}'.format(i), 2,
                                         bn=bn, instance=instance, activation=activation)
+        conv = Dropout(drop_rate)(conv)
+
     flat = Flatten()(conv)
-    if sigmoid:
-        outputs = Dense(2, activation='softmax')(flat)
-    else:
-        outputs = Dense(2, activation='tanh')(flat)
+    outputs = Dense(2, activation='softmax')(flat)
 
     model = Model(inputs, outputs, name='discriminator')
     return model
