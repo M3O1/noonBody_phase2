@@ -2,7 +2,7 @@ from keras.engine import Layer, InputSpec
 from keras.layers import initializers, regularizers, constraints
 import keras.backend as K
 from keras.utils.generic_utils import get_custom_objects
-from keras.layers import Conv2D
+from keras.layers import Conv2D, Dropout
 from keras.layers import BatchNormalization
 from keras.layers.core import Activation
 from keras.layers.advanced_activations import LeakyReLU
@@ -179,7 +179,7 @@ class PermaDropout(Layer):
         config = {'rate': self.rate,
                   'noise_shape': self.noise_shape,
                   'seed': self.seed}
-        base_config = super(Dropout, self).get_config()
+        base_config = super(PermaDropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     def compute_output_shape(self, input_shape):
