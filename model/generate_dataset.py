@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import h5py
 from tqdm import tqdm
+from data_utils import margin_to_square
 
 BUCKET_NAME = "baidu-segmentation-dataset"
 __all__ = ['generate_data']
@@ -45,20 +46,6 @@ def generate_data(img_dim, image_dir, profile_dir, h5_path, df_path,dataset_name
         else:
             file[dataset_name][...] = dataset
     print("save dataset in {}".format(h5_path))
-
-def margin_to_square(image):
-    h, w = image.shape[:2]
-    if h - w > 0:
-        diff = h - w
-        margin1, margin2 = diff // 2 , diff - diff//2
-        margined = np.pad(image,((0,0),(margin1,margin2),(0,0)),'constant',constant_values=0)
-    elif h - w < 0:
-        diff = w - h
-        margin1, margin2 = diff // 2 , diff - diff//2
-        margined = np.pad(image,((margin1,margin2),(0,0),(0,0)),'constant',constant_values=0)
-    else:
-        margined = image
-    return margined
 
 '''
     S3 Communication 관련 메소드
