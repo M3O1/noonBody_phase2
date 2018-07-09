@@ -87,6 +87,74 @@ def HumanSegGenerator(dataset,
                 yield np.stack(batch_image, axis=0), np.stack(batch_profile, axis=0)
                 counter = 0; batch_image = []; batch_profile = []
 
+def HumanDetectGenerator(dataset,
+                      img_dim,
+                      batch_size=64,
+                      sigmoid=True,
+                      aug_funcs=[],
+                      prep_funcs=[]):
+    '''
+    dataset : total dataset of human segmentation
+        data는 (384,384,4)로 구성되어 잇는데,
+        image, profile = data[384,384,:3], data[384,384,-1]
+
+        with h5py.File("../data/baidu-segmentation.h5") as file:
+            dataset = file['384x384'][:]
+
+    img_dim : 모델에 feeding하기 위한 input size
+    batch_size : batch size
+    sigmoid : 값 범위를 (0,1) or (-1,1)
+    aug_funcs : list of data augmentation func
+    prep_func : list of preprocessing func
+    '''
+    if batch_size is None:
+        # batch_size = None -> Full batch
+        batch_size = dataset.shape[0]
+
+    height, width = img_dim[:2]
+
+    counter = 0; batch_image = []; batch_pos = []
+    while True:
+        np.random.shuffle(dataset)
+        for data in dataset:
+            counter += 1
+            # data Normalization
+            data = cv2.normalize(data,np.zeros_like(data),
+                                 alpha=0.,beta=1.,
+                                 norm_type=cv2.NORM_MINMAX,
+                                 dtype=cv2.CV_32F)
+
+            # apply image augumentation
+            for aug_func in aug_funcs:
+                data = aug_func(data)
+
+            data = data.astype(np.float32) # adjust data type for opencv resize method
+            data = cv2.resize(data,img_dim[:2])
+
+            # apply image preprocessing
+            for prep_func in prep_funcs:
+                data = prep_func(data)
+
+            # dataset을 image와 profile로 나눔
+            image, profile = data[:,:,:-1], data[:,:,-1]
+            # adjust the range of value
+            image = np.clip(image,0.,1.)
+
+            profile = (profile>0.7).astype(np.uint8)
+
+            y , x  = np.argwhere(profile==1).min(axis=0)
+            y2, x2 = np.argwhere(profile==1).max(axis=0)
+            h, w = y2-y, x2-x
+            pos = np.array([x/width, y/height, w/width, h/height])
+            if not sigmoid:
+                # normalize from (0,1) to (-1,1)
+                image = to_tanh(image)
+
+            batch_image.append(image); batch_pos.append(pos)
+            if counter == batch_size:
+                yield np.stack(batch_image, axis=0), np.stack(batch_pos, axis=0)
+                counter = 0; batch_image = []; batch_pos = []
+
 # image preprocessing pipeline
 def clahe_func(clipLimit=2.0,tileGridSize=(8,8)):
     clahe = cv2.createCLAHE(clipLimit, tileGridSize)
