@@ -44,7 +44,6 @@ def HumanSegGenerator(dataset,
 
     counter = 0; batch_image = []; batch_profile = []
     while True:
-        np.random.shuffle(dataset)
         for data in dataset:
             counter += 1
             # data Normalization
@@ -86,6 +85,7 @@ def HumanSegGenerator(dataset,
             if counter == batch_size:
                 yield np.stack(batch_image, axis=0), np.stack(batch_profile, axis=0)
                 counter = 0; batch_image = []; batch_profile = []
+        np.random.shuffle(dataset)
 
 def HumanDetectGenerator(dataset,
                       img_dim,
@@ -115,7 +115,6 @@ def HumanDetectGenerator(dataset,
 
     counter = 0; batch_image = []; batch_pos = []
     while True:
-        np.random.shuffle(dataset)
         for data in dataset:
             counter += 1
             # data Normalization
@@ -154,6 +153,7 @@ def HumanDetectGenerator(dataset,
             if counter == batch_size:
                 yield np.stack(batch_image, axis=0), np.stack(batch_pos, axis=0)
                 counter = 0; batch_image = []; batch_pos = []
+        np.random.shuffle(dataset)
 
 # image preprocessing pipeline
 def clahe_func(clipLimit=2.0,tileGridSize=(8,8)):
