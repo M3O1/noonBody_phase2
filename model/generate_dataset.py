@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import h5py
+import boto3
 from tqdm import tqdm
 from data_utils import margin_to_square
 
@@ -86,3 +87,27 @@ def download_whole_dataset(s3, image_dir, label_dir):
         download(s3, BUCKET_NAME, key, file_path)
 
     return image_dir, label_dir
+
+def get_all_filepaths_in_dir(data_dir):
+    filepaths = []
+    filepaths_in_dir = os.path.join(data_dir,"*")
+    for filepath in glob.glob(filepaths_in_dir):
+        if os.path.isdir(filepath):
+            filepaths.extend(get_all_filepaths_in_dir(filepath))
+        else:
+            filepaths.append(filepath)
+    return filepaths
+
+def append_to_s3(data_dir="../data/"):
+    if data_dir[-1] != "/":
+        data_dir += "/"
+
+    local_filepaths = get_all_filepaths_in_dir(data_dir)
+
+    s3_filepaths = [key.replace("data/",data_dir) for key in get_s3_keys()]
+    s3_filepaths_except_csv = [key for key in s3_filepaths if os.path.splitext(key)[1] != ".csv"]
+
+    update_list = list(set(local_filepaths) - set(s3_filepaths_except_csv))
+    for filepath in tqdm(update_list):
+        target_key = filepath.replace(data_dir,"data/")
+        s3.upload_file(filepath,BUCKET_NAME,target_key)
