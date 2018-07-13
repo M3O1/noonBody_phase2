@@ -143,8 +143,7 @@ def HumanDetectGenerator(dataset,
 
             y , x  = np.argwhere(profile==1).min(axis=0)
             y2, x2 = np.argwhere(profile==1).max(axis=0)
-            h, w = y2-y, x2-x
-            pos = np.array([x/width, y/height, w/width, h/height])
+            pos = np.array([x/width, y/height, x2/width, y2/height])
             if not sigmoid:
                 # normalize from (0,1) to (-1,1)
                 image = to_tanh(image)

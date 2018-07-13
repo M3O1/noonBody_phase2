@@ -5,7 +5,7 @@ from keras.initializers import TruncatedNormal
 from keras.regularizers import l2
 from keras.layers import Flatten, Dense
 
-def SQUEEZEDET(img_dim=(256,256,3), nb_filter=16,drop_rate=0.3):
+def SQUEEZEDET(img_dim=(256,256,3), nb_filter=16,drop_rate=0.3, nb_fc=256):
     input_layer = Input(img_dim,name='input')
 
     conv0 = Conv2D(64, (3,3),strides=(2,2),padding='SAME', activation='relu',
@@ -46,13 +46,13 @@ def SQUEEZEDET(img_dim=(256,256,3), nb_filter=16,drop_rate=0.3):
             kernel_regularizer=l2(1e-3))(dropout)
 
     flat = Flatten()(preds)
-    flat = Dense(256, activation='relu')(flat)
+    flat = Dense(nb_fc, activation='relu')(flat)
     out = Dense(4)(flat)
 
     model = Model(inputs=input_layer, outputs=out,name='squeezedet')
     return model
 
-def fire_layer(input, nb_filter, stdd=0.001, w_decay=1e-3, name=''):
+def fire_layer(x, nb_filter, stdd=0.001, w_decay=1e-3, name=''):
     '''
     wrapper for fire layer constructions
 
@@ -64,7 +64,7 @@ def fire_layer(input, nb_filter, stdd=0.001, w_decay=1e-3, name=''):
     '''
     sq1x1 = Conv2D(nb_filter, (1,1), strides=(1,1), padding='SAME',
                    kernel_initializer=TruncatedNormal(stddev=stdd), activation='relu',
-                   kernel_regularizer=l2(w_decay),name=name+'/squeeze1x1')(input)
+                   kernel_regularizer=l2(w_decay),name=name+'/squeeze1x1')(x)
     ex1x1 = Conv2D(4*nb_filter, (1,1), strides=(1,1), padding='SAME',
                    kernel_initializer=TruncatedNormal(stddev=stdd), activation='relu',
                    kernel_regularizer=l2(w_decay),name=name+'/expand1x1')(sq1x1)

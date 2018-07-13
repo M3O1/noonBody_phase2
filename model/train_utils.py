@@ -30,11 +30,13 @@ class PlotCheckpoint(keras.callbacks.Callback):
 
         pred = self.unet.predict_on_batch(self.images)
         if self.bg_removal:
-            plot_bg_removal_sample_image(self.images, pred, plot_path)
+            samples = plot_bg_removal_sample_image(self.images, pred, plot_path)
         else:
             pred = (pred >= self.thr).astype(np.uint8)
-            plot_sample_image(self.images, pred, plot_path)
+            samples = plot_sample_image(self.images, pred, plot_path)
 
+        samples = cv2.cvtColor(samples, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(plot_path, samples)
         return
 
     def on_batch_begin(self, batch, logs={}):
@@ -43,7 +45,40 @@ class PlotCheckpoint(keras.callbacks.Callback):
     def on_batch_end(self, batch, logs={}):
         return
 
-def plot_sample_image(images, profiles, plot_path):
+class BBoxPlotCheckpoint(keras.callbacks.Callback):
+    def __init__(self, unet, images, true_bbox_points, plot_dir):
+        self.unet = unet
+        self.images = images
+        self.true_bbox_points = true_bbox_points
+        self.plot_dir = plot_dir
+
+    def on_train_begin(self, logs={}):
+        return
+
+    def on_train_end(self, logs={}):
+        return
+
+    def on_epoch_begin(self, epoch, logs={}):
+        return
+
+    def on_epoch_end(self, epoch, logs={}):
+        plot_path = os.path.join(self.plot_dir,"{:02d}_epoch_sample.png".format(epoch))
+
+        pred_bbox_points = self.unet.predict_on_batch(self.images)
+        samples = plot_bbox_sample_image(self.images, pred_bbox_points, self.true_bbox_points)
+
+        samples = cv2.cvtColor(samples, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(plot_path, samples)
+        return
+
+    def on_batch_begin(self, batch, logs={}):
+        return
+
+    def on_batch_end(self, batch, logs={}):
+        return
+
+
+def plot_sample_image(images, profiles):
     images = np.stack([to_uint8(image) for image in np.squeeze(images)])
     profiles = np.stack([to_uint8(image) for image in np.squeeze(profiles)])
 
@@ -54,10 +89,9 @@ def plot_sample_image(images, profiles, plot_path):
         result = fill_mask(image, profile)
         samples.append(np.concatenate((image,result),axis=1))
     samples = np.concatenate(samples,axis=0)
-    samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
-    cv2.imwrite(plot_path, samples)
+    return samples
 
-def plot_bg_removal_sample_image(images, profiles, plot_path):
+def plot_bg_removal_sample_image(images, profiles):
     images = np.stack([to_uint8(image) for image in np.squeeze(images)])
     profiles = np.stack([to_uint8(image) for image in np.squeeze(profiles)])
 
@@ -69,8 +103,24 @@ def plot_bg_removal_sample_image(images, profiles, plot_path):
             image = cv2.cvtColor(profile, cv2.COLOR_GRAY2RGB)
         samples.append(np.concatenate((image,profile),axis=1))
     samples = np.concatenate(samples,axis=0)
-    samples = cv2.cvtColor(samples, cv2.COLOR_BGR2RGB)
-    cv2.imwrite(plot_path, samples)
+    return samples
+
+def plot_bbox_sample_image(images, pred_bbox_points, true_bbox_points):
+    h, w = images.shape[1:3]
+    samples = []
+    for image, pred_point, true_point in zip(images, pred_bbox_points, true_bbox_points):
+        x1,y1,x2,y2 = true_point
+        x1,y1 = int(np.floor(x1*w)), int(np.ceil(y1*h))
+        x2,y2 = int(np.floor(x2*w)), int(np.ceil(y2*h))
+        sample = cv2.rectangle(image.copy(),(x1,y1),(x2,y2),(1,0,0),2)
+
+        x1,y1,x2,y2 = pred_point
+        x1,y1 = int(np.floor(x1*w)), int(np.ceil(y1*h))
+        x2,y2 = int(np.floor(x2*w)), int(np.ceil(y2*h))
+        sample = cv2.rectangle(sample,(x1,y1),(x2,y2),(0,1,0),2)
+        samples.append(sample)
+    samples = np.concatenate(samples, axis=0)
+    return samples
 
 def extract_contour(image):
     kernel = np.ones((5,5), np.uint8)
