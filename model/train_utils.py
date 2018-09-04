@@ -33,7 +33,7 @@ class PlotCheckpoint(keras.callbacks.Callback):
             samples = plot_bg_removal_sample_image(self.images, pred, plot_path)
         else:
             pred = (pred >= self.thr).astype(np.uint8)
-            samples = plot_sample_image(self.images, pred, plot_path)
+            samples = plot_sample_image(self.images, pred)
 
         samples = cv2.cvtColor(samples, cv2.COLOR_RGB2BGR)
         cv2.imwrite(plot_path, samples)

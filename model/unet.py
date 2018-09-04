@@ -61,9 +61,7 @@ def UNET(img_dim=(256,256,3), depth=4,
 
 def unet_convBlock(x, filters, block_name, bn=True, instance=False, drop_rate=0,activation='relu'):
     conv = conv_bn_activation(x, filters, block_name+'conv1', 1, bn, instance, activation)
-    conv = PermaDropout(drop_rate)(conv)
     conv = conv_bn_activation(conv, filters, block_name+'conv2', 1, bn, instance, activation)
-    conv = PermaDropout(drop_rate)(conv)
     out = MaxPooling2D((2, 2), name=block_name+"pool") (conv)
     return conv, out
 
@@ -72,7 +70,5 @@ def unet_upconvBlock(x, connect_layer, filters, block_name, bn=True, instance=Fa
     concat = concatenate([upconv, connect_layer], axis=3, name=block_name+"concat")
 
     conv = conv_bn_activation(concat, filters, block_name+'conv1', 1, bn, instance, activation)
-    conv = PermaDropout(drop_rate)(conv)
     conv = conv_bn_activation(conv, filters, block_name+'conv2', 1, bn, instance, activation)
-    conv = PermaDropout(drop_rate)(conv)
     return conv

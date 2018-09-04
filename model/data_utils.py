@@ -280,16 +280,16 @@ def color_gamma_func(min_gamma=0.6,max_gamma=1.4):
         return data
     return func
 
-def margin_to_square(image):
+def margin_to_square(image,constant_values=0):
     h, w = image.shape[:2]
     if h - w > 0:
         diff = h - w
         margin1, margin2 = diff // 2 , diff - diff//2
-        margined = np.pad(image,((0,0),(margin1,margin2),(0,0)),'constant',constant_values=0)
+        margined = np.pad(image,((0,0),(margin1,margin2),(0,0)),'constant',constant_values=constant_values)
     elif h - w < 0:
         diff = w - h
         margin1, margin2 = diff // 2 , diff - diff//2
-        margined = np.pad(image,((margin1,margin2),(0,0),(0,0)),'constant',constant_values=0)
+        margined = np.pad(image,((margin1,margin2),(0,0),(0,0)),'constant',constant_values=constant_values)
     else:
         margined = image
     return margined
