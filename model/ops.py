@@ -205,3 +205,46 @@ def conv_bn_activation(x, filters, block_name, strides=1, bn=True, instance=Fals
     else:
         conv = Activation('relu')(conv)
     return conv
+
+def mobile_conv_block(x, pointwise_conv_filters, block_name, 
+                      strides=1, bn=True, instance=False, activation='relu',
+                      depth_multiplier=1):
+    from keras.applications.mobilenet import DepthwiseConv2D
+
+    conv = DepthwiseConv2D((3, 3),
+                        padding='same',
+                        depth_multiplier=depth_multiplier,
+                        strides=strides,
+                        use_bias=False,
+                        name=block_name+"_depthconv")(x)
+    
+    if bn:
+        if instance:
+            conv = InstanceNormalization(axis=3)(conv)
+        else:
+            conv = BatchNormalization(axis=3)(conv)
+
+    if activation=='LeakyReLU':
+        conv = LeakyReLU(0.2)(conv)
+    else:
+        conv = Activation('relu')(conv)
+
+    conv = Conv2D(pointwise_conv_filters, (1, 1),
+               padding='same',
+               use_bias=False,
+               strides=(1, 1),
+               name=block_name+"_pointconv")(conv)
+    
+    if bn:
+        if instance:
+            conv = InstanceNormalization(axis=3)(conv)
+        else:
+            conv = BatchNormalization(axis=3)(conv)
+
+    
+    if activation=='LeakyReLU':
+        conv = LeakyReLU(0.2)(conv)
+    else:
+        conv = Activation('relu')(conv)
+
+    return conv
