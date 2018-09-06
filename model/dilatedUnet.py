@@ -1,9 +1,9 @@
 from keras import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose
+from keras.layers import Input, Conv2D, MaxPooling2D, Conv2DTranspose, AveragePooling2D
 from keras.layers import BatchNormalization, concatenate
 from keras.layers.core import Activation
 from keras.layers.advanced_activations import LeakyReLU
-from ops import InstanceNormalization, conv_bn_activation, PermaDropout, dilated_bn_activation
+from ops import InstanceNormalization, conv_bn_activation, PermaDropout
 
 def DILATEDUNET(img_dim=(256,256,3), depth=4,
          nb_filter=32, bn=True, instance=False, drop_rate=0, activation='relu',
@@ -59,16 +59,38 @@ def DILATEDUNET(img_dim=(256,256,3), depth=4,
     model = Model(inputs=x, outputs=y, name='unet')
     return model
 
-def unet_convBlock(x, filters, block_name, bn=True, instance=False, drop_rate=0,activation='relu', dilation_rate=1):
-    conv = dilated_bn_activation(x, filters, block_name+'conv1', 1, bn, instance, activation, dilation_rate=dilation_rate)
+def unet_convBlock(x, filters, block_name, bn=True, instance=False, drop_rate=0,activation='relu', dilation_rate=2):
+    conv = conv_bn_activation(x, filters, block_name+'conv1', 1, bn, instance, activation)
     conv = dilated_bn_activation(conv, filters, block_name+'conv2', 1, bn, instance, activation, dilation_rate=dilation_rate)
-    out = MaxPooling2D((2, 2), name=block_name+"pool") (conv)
+    concat = concatenate([x, conv], axis=3, name=block_name+"concat")
+    squeeze = Conv2D(filters, (1,1), activation='linear', name=block_name+"pointwise", use_bias=False)(concat)
+    out = AveragePooling2D((2, 2), name=block_name+"pool")(squeeze)
     return conv, out
 
-def unet_upconvBlock(x, connect_layer, filters, block_name, bn=True, instance=False, drop_rate=0, activation='relu', dilation_rate=1):
-    upconv = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same', name=block_name+"upconv1", dilation_rate=dilation_rate) (x)
+def unet_upconvBlock(x, connect_layer, filters, block_name, bn=True, instance=False, drop_rate=0, activation='relu', dilation_rate=2):
+    upconv = Conv2DTranspose(filters, (2, 2), strides=(2, 2), padding='same', name=block_name+"upconv1") (x)
     concat = concatenate([upconv, connect_layer], axis=3, name=block_name+"concat")
 
-    conv = dilated_bn_activation(concat, filters, block_name+'conv1', 1, bn, instance, activation, dilation_rate=dilation_rate)
-    conv = dilated_bn_activation(conv, filters, block_name+'conv2', 1, bn, instance, activation, dilation_rate=dilation_rate)
+    conv = conv_bn_activation(concat, filters, block_name+'conv1', 1, bn, instance, activation)
+    conv = conv_bn_activation(conv, filters, block_name+'conv2', 1, bn, instance, activation)
+    concat = concatenate([concat, conv], axis=3, name=block_name+"concat2")
+    squeeze = Conv2D(filters, (1,1), activation='linear', name=block_name+"pointwise", use_bias=False)(concat)
+    return squeeze
+
+def dilated_bn_activation(x, filters, block_name, strides=1, bn=True, instance=False, activation='relu', dilation_rate=2):
+    if bn:
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', strides=strides, 
+                    name=block_name, use_bias=False, dilation_rate=dilation_rate) (x)
+        if instance:
+            conv = InstanceNormalization(axis=3)(conv)
+        else:
+            conv = BatchNormalization(axis=3)(conv)
+    else:
+        conv = Conv2D(filters, (3, 3), activation='linear', padding='same', strides=strides, 
+                    name=block_name, dilation_rate=dilation_rate) (x)
+
+    if activation=='LeakyReLU':
+        conv = LeakyReLU(0.2)(conv)
+    else:
+        conv = Activation('relu')(conv)
     return conv

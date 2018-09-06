@@ -262,6 +262,7 @@ def random_noise_func(var=0.001):
         data[:,:,:3] = random_noise(data[:,:,:3],
                                     mode='gaussian',
                                     mean=0,var=var)
+        data = np.clip(data,0.0,1.0)
         return data
     return func
 
@@ -269,6 +270,7 @@ def gamma_func(min_gamma=0.8,max_gamma=1.4):
     def func(data):
         gamma = np.random.uniform(min_gamma,max_gamma)
         data[:,:,:3] = adjust_gamma(data[:,:,:3],gamma)
+        data = np.clip(data,0.0,1.0)
         return data
     return func
 
@@ -277,6 +279,40 @@ def color_gamma_func(min_gamma=0.6,max_gamma=1.4):
         for i in range(3):
             gamma = np.random.uniform(min_gamma,max_gamma)
             data[:,:,i] = adjust_gamma(data[:,:,i], gamma)
+        data = np.clip(data,0.0,1.0)
+        return data
+    return func
+
+def hue_func(min_gamma=0.8,max_gamma=1.2):
+    def func(data):
+        data = data.astype(np.float32)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2HSV)
+        gamma = np.random.uniform(min_gamma,max_gamma)
+        data[:,:,0] = adjust_gamma(data[:,:,0], gamma)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_HSV2RGB)
+        data = np.clip(data,0.0,1.0)
+        return data
+    return func
+
+def saturation_func(min_gamma=0.8,max_gamma=1.2):
+    def func(data):
+        data = data.astype(np.float32)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2HSV)
+        gamma = np.random.uniform(min_gamma,max_gamma)
+        data[:,:,1] = adjust_gamma(data[:,:,1], gamma)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_HSV2RGB)
+        data = np.clip(data,0.0,1.0)
+        return data
+    return func
+
+def saturation_func(min_gamma=0.6,max_gamma=1.4):
+    def func(data):
+        data = data.astype(np.float32)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2HSV)
+        gamma = np.random.uniform(min_gamma,max_gamma)
+        data[:,:,1] = adjust_gamma(data[:,:,1], gamma)
+        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_HSV2RGB)
+        data = np.clip(data,0.0,1.0)
         return data
     return func
 
