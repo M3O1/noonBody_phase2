@@ -7,8 +7,6 @@ from skimage.transform import rescale, rotate
 from skimage.util import random_noise
 from skimage.exposure import adjust_gamma
 
-__all__ = ['HumanSegGenerator','load_dataset']
-
 def load_dataset(dataset_name='train',
                  h5_path="../data/baidu-segmentation.h5"):
     with h5py.File(h5_path) as file:
@@ -16,6 +14,7 @@ def load_dataset(dataset_name='train',
 
 def HumanSegGenerator(dataset,
                       img_dim,
+                      apply_ratio=0.5,
                       batch_size=64,
                       sigmoid=True,
                       bg_removal=False,
@@ -64,7 +63,8 @@ def HumanSegGenerator(dataset,
 
             # apply image preprocessing
             for prep_func in prep_funcs:
-                data = prep_func(data)
+                if np.random.random()<apply_ratio:
+                    data = prep_func(data)
 
             # dataset을 image와 profile로 나눔
             image, profile = data[:,:,:-1], data[:,:,-1]
@@ -155,6 +155,23 @@ def HumanDetectGenerator(dataset,
         np.random.shuffle(dataset)
 
 # image preprocessing pipeline
+def histogram_func():
+    def func(data):
+        image = cv2.normalize(data[:,:,:3],np.zeros_like(data[:,:,:3]),
+                              alpha=0,beta=255,
+                              norm_type=cv2.NORM_MINMAX,
+                              dtype=cv2.CV_8U)
+        image = cv2.cvtColor(image,cv2.COLOR_RGB2LAB)
+        image[:,:,0] = cv2.equalizeHist(image[:,:,0])
+        image = cv2.cvtColor(image,cv2.COLOR_LAB2RGB)
+        # normalize (0,1)
+        data[:,:,:3] = cv2.normalize(image,np.zeros_like(image),
+                                     alpha=0.,beta=1.,
+                                     norm_type=cv2.NORM_MINMAX,
+                                     dtype=cv2.CV_32F)
+        return data
+    return func
+
 def clahe_func(clipLimit=2.0,tileGridSize=(8,8)):
     clahe = cv2.createCLAHE(clipLimit, tileGridSize)
     def func(data):
@@ -187,7 +204,6 @@ def gray_func():
 def homomorphic_func(sigma=10,gamma1=0.5,gamma2=1.5):
     def func(data):
         img = data[:,:,:3]
-
 
         img_YUV = cv2.cvtColor(img, cv2.COLOR_RGB2YUV)
         y = img_YUV[:,:,0]
@@ -289,17 +305,6 @@ def hue_func(min_gamma=0.8,max_gamma=1.2):
         data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2HSV)
         gamma = np.random.uniform(min_gamma,max_gamma)
         data[:,:,0] = adjust_gamma(data[:,:,0], gamma)
-        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_HSV2RGB)
-        data = np.clip(data,0.0,1.0)
-        return data
-    return func
-
-def saturation_func(min_gamma=0.8,max_gamma=1.2):
-    def func(data):
-        data = data.astype(np.float32)
-        data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_RGB2HSV)
-        gamma = np.random.uniform(min_gamma,max_gamma)
-        data[:,:,1] = adjust_gamma(data[:,:,1], gamma)
         data[:,:,:3] = cv2.cvtColor(data[:,:,:3],cv2.COLOR_HSV2RGB)
         data = np.clip(data,0.0,1.0)
         return data
